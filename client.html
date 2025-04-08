@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Sensores en Tiempo Real</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --bg-color: #ecf0f1;
+            --panel-bg: #ffffff;
+            --text-color: #2c3e50;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .connected {
+            background-color: #2ecc71;
+            box-shadow: 0 0 10px #2ecc71;
+        }
+        
+        .disconnected {
+            background-color: #e74c3c;
+            box-shadow: 0 0 10px #e74c3c;
+        }
+        
+        .status-text {
+            font-weight: bold;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        #historyButton {
+            background-color: #16a085;
+        }
+        
+        #historyButton:hover {
+            background-color: #1abc9c;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .sensor-card {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sensor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .sensor-title {
+            margin: 0;
+            color: var(--primary-color);
+        }
+        
+        .sensor-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+            margin: 10px 0;
+        }
+        
+        .sensor-unit {
+            font-size: 1rem;
+            color: #7f8c8d;
+        }
+        
+        .chart-container {
+            height: 120px;
+            width: 100%;
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        footer {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-align: center;
+        }
+        
+        .time-display {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-align: right;
+            margin-top: 5px;
+        }
+        
+        .history-panel {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .history-title {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>Monitor de Sensores en Tiempo Real</h1>
+            <div class="connection-status">
+                <span id="statusIndicator" class="status-indicator disconnected"></span>
+                <span id="statusText" class="status-text">Desconectado</span>
+                <div class="controls">
+                    <button id="connectButton">Conectar</button>
+                    <button id="disconnectButton" disabled>Desconectar</button>
+                    <button id="historyButton" disabled>Ver Historial</button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="dashboard-grid">
+            <div class="sensor-card">
+                <div class="sensor-header">
+                    <h3 class="sensor-title">Temperatura</h3>
+                    <i class="sensor-icon">🌡️</i>
+                </div>
+                <div id="temperatureValue" class="sensor-value">--</div>
+                <div class="sensor-unit">°C</div>
+                <div class="time-display" id="tempTime">--</div>
+            </div>
+            
+            <div class="sensor-card">
+                <div class="sensor-header">
+                    <h3 class="sensor-title">Humedad</h3>
+                    <i class="sensor-icon">💧</i>
+                </div>
+                <div id="humidityValue" class="sensor-value">--</div>
+                <div class="sensor-unit">%</div>
+                <div class="time-display" id="humTime">--</div>
+            </div>
+            
+            <div class="sensor-card">
+                <div class="sensor-header">
+                    <h3 class="sensor-title">Presión</h3>
+                    <i class="sensor-icon">🔄</i>
+                </div>
+                <div id="pressureValue" class="sensor-value">--</div>
+                <div class="sensor-unit">hPa</div>
+                <div class="time-display" id="presTime">--</div>
+            </div>
+            
+            <div class="sensor-card">
+                <div class="sensor-header">
+                    <h3 class="sensor-title">Calidad del Aire</h3>
+                    <i class="sensor-icon">🌬️</i>
+                </div>
+                <div id="airQualityValue" class="sensor-value">--</div>
+                <div class="sensor-unit">AQI</div>
+                <div class="time-display" id="airTime">--</div>
+            </div>
+            
+            <div class="sensor-card">
+                <div class="sensor-header">
+                    <h3 class="sensor-title">Iluminación</h3>
+                    <i class="sensor-icon">💡</i>
+                </div>
+                <div id="lightValue" class="sensor-value">--</div>
+                <div class="sensor-unit">lux</div>
+                <div class="time-display" id="lightTime">--</div>
+            </div>
+        </div>
+        
+        <div id="historyPanel" class="history-panel">
+            <h2 class="history-title">Historial de Mediciones</h2>
+            <table id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Temperatura (°C)</th>
+                        <th>Humedad (%)</th>
+                        <th>Presión (hPa)</th>
+                        <th>Calidad del Aire (AQI)</th>
+                        <th>Iluminación (lux)</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <!-- Los datos se insertarán dinámicamente aquí -->
+                </tbody>
+            </table>
+        </div>
+        
+        <footer>
+            <p>Monitor de Sensores en Tiempo Real v1.0 | Datos actualizados cada 2 segundos</p>
+        </footer>
+    </div>
+
+    <script>
+        // Elementos DOM para el estado de conexión
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const historyButton = document.getElementById('historyButton');
+        const historyPanel = document.getElementById('historyPanel');
+        
+        // Elementos DOM para los valores de los sensores
+        const temperatureValue = document.getElementById('temperatureValue');
+        const humidityValue = document.getElementById('humidityValue');
+        const pressureValue = document.getElementById('pressureValue');
+        const airQualityValue = document.getElementById('airQualityValue');
+        const lightValue = document.getElementById('lightValue');
+        
+        // Elementos DOM para las marcas de tiempo
+        const tempTime = document.getElementById('tempTime');
+        const humTime = document.getElementById('humTime');
+        const presTime = document.getElementById('presTime');
+        const airTime = document.getElementById('airTime');
+        const lightTime = document.getElementById('lightTime');
+        
+        // Elemento DOM para la tabla de historial
+        const historyTableBody = document.getElementById('historyTableBody');
+        
+        // Variable para almacenar la conexión WebSocket
+        let socket = null;
+        
+        // Función para formatear la fecha/hora
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString();
+        }
+        
+        // Función para actualizar los valores de los sensores
+        function updateSensorValues(data) {
+            temperatureValue.textContent = data.sensors.temperature;
+            humidityValue.textContent = data.sensors.humidity;
+            pressureValue.textContent = data.sensors.pressure;
+            airQualityValue.textContent = data.sensors.airQuality;
+            lightValue.textContent = data.sensors.light;
+            
+            const timeStr = formatDateTime(data.timestamp);
+            tempTime.textContent = timeStr;
+            humTime.textContent = timeStr;
+            presTime.textContent = timeStr;
+            airTime.textContent = timeStr;
+            lightTime.textContent = timeStr;
+            
+            // Aplicar colores según valores (solo como ejemplo)
+            if (data.sensors.temperature > 25) {
+                temperatureValue.style.color = '#e74c3c';
+            } else if (data.sensors.temperature < 15) {
+                temperatureValue.style.color = '#3498db';
+            } else {
+                temperatureValue.style.color = '#2ecc71';
+            }
+            
+            if (data.sensors.airQuality > 80) {
+                airQualityValue.style.color = '#2ecc71';
+            } else if (data.sensors.airQuality < 40) {
+                airQualityValue.style.color = '#e74c3c';
+            } else {
+                airQualityValue.style.color = '#f39c12';
+            }
+        }
+        
+        // Función para conectar al servidor WebSocket
+        function connect() {
+            if (socket && socket.readyState !== WebSocket.CLOSED) {
+                console.log('Ya existe una conexión abierta.');
+                return;
+            }
+            
+            // Crear una nueva conexión WebSocket
+            socket = new WebSocket('ws://localhost:8080/');
+            
+            // Evento: apertura de conexión
+            socket.addEventListener('open', (event) => {
+                console.log('Conexión establecida con el servidor');
+                statusIndicator.className = 'status-indicator connected';
+                statusText.textContent = 'Conectado';
+                
+                // Habilitar/deshabilitar botones
+                connectButton.disabled = true;
+                disconnectButton.disabled = false;
+                historyButton.disabled = false;
+            });
+            
+            // Evento: recepción de mensajes
+            socket.addEventListener('message', (event) => {
+                const data = JSON.parse(event.data);
+                
+                // Verificar si es un mensaje de historial
+                if (data.type === 'history_data') {
+                    displayHistoryData(data.data);
+                } else {
+                    // Es un mensaje de datos en tiempo real
+                    updateSensorValues(data);
+                }
+            });
+            
+            // Evento: error
+            socket.addEventListener('error', (event) => {
+                console.error('Error en la conexión WebSocket');
+                statusIndicator.className = 'status-indicator disconnected';
+                statusText.textContent = 'Error de conexión';
+            });
+            
+            // Evento: cierre de conexión
+            socket.addEventListener('close', (event) => {
+                console.log(`Conexión cerrada. Código: ${event.code}`);
+                statusIndicator.className = 'status-indicator disconnected';
+                statusText.textContent = 'Desconectado';
+                
+                // Habilitar/deshabilitar botones
+                connectButton.disabled = false;
+                disconnectButton.disabled = true;
+                historyButton.disabled = true;
+                
+                // Ocultar panel de historial
+                historyPanel.style.display = 'none';
+            });
+        }
+        
+        // Función para desconectar
+        function disconnect() {
+            if (socket && socket.readyState !== WebSocket.CLOSED) {
+                socket.close();
+            }
+        }
+        
+        // Función para solicitar datos históricos
+        function requestHistoryData() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const command = {
+                    type: 'get_history'
+                };
+                
+                socket.send(JSON.stringify(command));
+                historyPanel.style.display = 'block';
+            } else {
+                console.error('No hay conexión disponible para solicitar datos históricos');
+            }
+        }
+        
+        // Función para mostrar datos históricos
+        function displayHistoryData(historyData) {
+            // Limpiar la tabla
+            historyTableBody.innerHTML = '';
+            
+            // Agregar cada punto de datos a la tabla
+            historyData.forEach(data => {
+                const row = document.createElement('tr');
+                
+                // Crear celdas para cada valor
+                const timeCell = document.createElement('td');
+                timeCell.textContent = formatDateTime(data.timestamp);
+                
+                const tempCell = document.createElement('td');
+                tempCell.textContent = data.sensors.temperature;
+                
+                const humCell = document.createElement('td');
+                humCell.textContent = data.sensors.humidity;
+                
+                const presCell = document.createElement('td');
+                presCell.textContent = data.sensors.pressure;
+                
+                const airCell = document.createElement('td');
+                airCell.textContent = data.sensors.airQuality;
+                
+                const lightCell = document.createElement('td');
+                lightCell.textContent = data.sensors.light;
+                
+                // Agregar celdas a la fila
+                row.appendChild(timeCell);
+                row.appendChild(tempCell);
+                row.appendChild(humCell);
+                row.appendChild(presCell);
+                row.appendChild(airCell);
+                row.appendChild(lightCell);
+                
+                // Agregar fila a la tabla
+                historyTableBody.appendChild(row);
+            });
+        }
+        
+        // Event listeners
+        connectButton.addEventListener('click', connect);
+        disconnectButton.addEventListener('click', disconnect);
+        historyButton.addEventListener('click', requestHistoryData);
+    </script>
+</body>
+</html>

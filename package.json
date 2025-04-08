@@ -1,0 +1,19 @@
+{
+  "name": "websocket-example",
+  "version": "1.0.0",
+  "description": "Ejemplo de servidor WebSocket",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "websocket",
+    "node",
+    "ejemplo"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "websocket": "^1.0.34"
+  }
+}
